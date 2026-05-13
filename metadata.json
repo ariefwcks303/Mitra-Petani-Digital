@@ -1,0 +1,6 @@
+{
+  "name": "Mitra Digital Petani",
+  "description": "Asisten AI pemasaran pribadi untuk petani, peternak, dan pekebun untuk meningkatkan nilai jual hasil bumi melalui analisis kualitas dan pembuatan bahan promosi otomatis.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": []
+}
