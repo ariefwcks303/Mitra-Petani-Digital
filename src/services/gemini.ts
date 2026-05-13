@@ -34,10 +34,10 @@ export const analyzeProduct = async (imageB64?: string, textPrompt?: string) => 
     Gunakan bahasa yang hangat, sapa bapak/ibu petani dengan hormat.
   `;
 
-  const contents = [];
+  const parts = [];
   
   if (imageB64) {
-    contents.push({
+    parts.push({
       inlineData: {
         mimeType: "image/jpeg",
         data: imageB64.split(',')[1] || imageB64
@@ -45,14 +45,14 @@ export const analyzeProduct = async (imageB64?: string, textPrompt?: string) => 
     });
   }
   
-  contents.push({
+  parts.push({
     text: textPrompt || "Tolong analisis produk pertanian ini dan buatkan bahan pemasarannya."
   });
 
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: { parts: contents },
+      contents: { parts: parts },
       config: {
         systemInstruction: systemInstruction,
         temperature: 0.7,
@@ -62,6 +62,45 @@ export const analyzeProduct = async (imageB64?: string, textPrompt?: string) => 
     return response.text;
   } catch (error: any) {
     console.error("Gemini API Error:", error);
-    throw new Error("Gagal menganalisis produk. Silakan coba lagi.");
+    
+    // Check for quota exceeded error
+    const errorString = JSON.stringify(error);
+    if (errorString.includes("RESOURCE_EXHAUSTED") || errorString.includes("429")) {
+      throw new Error("QUOTA_EXHAUSTED");
+    }
+    
+    throw new Error("Gagal menganalisis produk. Silakan pastikan koneksi internet bapak/ibu lancar dan coba lagi.");
+  }
+};
+
+export const generateProductImage = async (prompt: string) => {
+  // Use a new instance to ensure we pick up the latest API key from the selection dialog if used
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+  
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.1-flash-image-preview',
+      contents: { parts: [{ text: prompt }] },
+      config: {
+        imageConfig: {
+          aspectRatio: "1:1",
+          imageSize: "1K"
+        }
+      }
+    });
+
+    for (const part of response.candidates?.[0]?.content?.parts || []) {
+      if (part.inlineData) {
+        return `data:image/png;base64,${part.inlineData.data}`;
+      }
+    }
+    throw new Error("Tidak ada gambar yang dihasilkan.");
+  } catch (error: any) {
+    console.error("Image generation error:", error);
+    const errorString = JSON.stringify(error);
+    if (errorString.includes("Requested entity was not found")) {
+      throw new Error("KEY_NOT_FOUND");
+    }
+    throw new Error("Gagal membuat foto AI. Silakan coba lagi.");
   }
 };
